@@ -36,12 +36,14 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
+  console.log("user :",user.id)
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
     try {
       const user = await User.findById(id).exec();
+      console.log("user found:",user)
       done(null, user); // Passes the user object to req.user
     } catch (err) {
       done(err, null); // Error handling, passing null for user
