@@ -5,10 +5,11 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const passport = require("passport");
 const mongoose = require("mongoose");
-const jwt =require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+var logger = require("morgan");
 dotenv.config();
 require("./config/passport");
-// const redisClient = require('./redisClient');
+const redisClient = require('./redisClient');
 
 // Connect to MongoDB Atlas
 mongoose
@@ -17,7 +18,13 @@ mongoose
   .catch((err) => console.error("MongoDB Atlas connection error:", err));
 
 const app = express();
-app.use(cors());
+app.use(logger("dev"));
+app.use(
+  cors({
+    origin: "http://localhost:3000", // Allow requests from this origin
+    credentials: true, // Allow cookies to be sent with requests
+  })
+);
 app.use(cookieParser());
 app.use(
   session({
@@ -34,10 +41,11 @@ app.use(passport.session());
 // Routes
 const authRoutes = require("./routes/authRoute");
 
-
 app.use("/", authRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`App is running on port ${PORT}`);
+  
+
 });

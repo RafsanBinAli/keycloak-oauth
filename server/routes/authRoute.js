@@ -4,7 +4,38 @@ const { getUserGroups } = require("../user-service"); // Assuming you have a use
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 const { isAuthenticated } = require("../middlewares/authentication");
-// const redisClient = require('../redisClient');
+const { checkAndRefreshToken } = require("../controllers/authController");
+const redisClient = require("../redisClient");
+const authenticateJWT = require("../middlewares/authenticateJWT");
+const generateJWT = require("../functions/generateJWT");
+//functions
+
+function storeUserDataInRedis(userEmail, accessToken, sharedGroups, expiresIn) {
+  const now = Date.now(); // Current timestamp in milliseconds
+  const expiresInMilliseconds = expiresIn * 1000; // Convert expiresIn to milliseconds
+  console.log("expires at", now + expiresInMilliseconds);
+  const userData = {
+    user_email: userEmail,
+    groups: sharedGroups,
+    accessToken: accessToken,
+    expiresAt: now + expiresInMilliseconds, // Calculate expiration time in milliseconds
+  };
+  const expireTimeforRedis= 3600*1000;
+
+  const jsonString = JSON.stringify(userData);
+  const redisKey = `user:${userEmail}`;
+
+  redisClient.setEx(redisKey,expireTimeforRedis, jsonString, (err, reply) => {
+    if (err) {
+      console.error(`Error storing data for ${redisKey} in Redis:`, err);
+    } else {
+      console.log(`Data stored for ${redisKey} in Redis:`, reply);
+    }
+  });
+}
+
+//routes
+
 router.get(
   "/auth/google",
   passport.authenticate("google", {
@@ -26,8 +57,13 @@ router.get(
       // Extract group names from groups response
       const sharedGroups = groups.map((group) => group.name);
 
-      // Store sharedGroups in a constant or database if needed
-      const sharedGroupsConstant = sharedGroups;
+      const expireTime = 60;
+      storeUserDataInRedis(
+        req.user.email,
+        req.user.accessToken,
+        sharedGroups,
+        expireTime
+      );
 
       // Generate JWT token
       const jwtToken = generateJWT(
@@ -37,7 +73,7 @@ router.get(
       );
       // , { httpOnly: true }
 
-      res.cookie('jwtToken', jwtToken);
+      res.cookie("jwtToken", jwtToken);
 
       // Redirect to frontend (http://localhost:3000)
       res.redirect("http://localhost:3000");
@@ -48,24 +84,23 @@ router.get(
   }
 );
 
-function generateJWT(accessToken, userEmail, sharedGroups) {
-  // Define JWT payload
-  const payload = {
-    accessToken: accessToken,
-    email: userEmail,
-    groups: sharedGroups,
+router.get("/dummy-data", authenticateJWT, (req, res) => {
+  console.log(req);
+  const dummyData = {
+    message: "This is some dummy data",
+    timestamp: new Date().toISOString(),
   };
 
-  // Sign the JWT token with a secret key and set an expiry time
-  const jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: "1h",
-  });
+  res.json(dummyData);
+});
 
-
-  //In here we will save the user email, and the groups he is associated with , plus accessToken
-  // redisClient.set(`user:${userEmail}`, JSON.stringify(payload), 'EX', 3600); // Expires in 1 hour
-
-  return jwtToken;
-}
+router.get(
+  "/check-expiry",
+  authenticateJWT,
+  checkAndRefreshToken,
+  (req, res) => {
+    console.log(req.newJWT);
+  }
+);
 
 module.exports = router;
