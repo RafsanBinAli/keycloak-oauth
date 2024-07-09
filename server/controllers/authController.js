@@ -17,7 +17,7 @@ async function getNewAccessToken(refreshToken) {
         },
       }
     );
-    console.log("response: ",response);
+    console.log("New AccessToken Generated from Google api");
 
     return response.data.access_token;
   } catch (error) {
@@ -30,7 +30,7 @@ async function getNewAccessToken(refreshToken) {
 }
 
 async function getRedisData(redisKey) {
-  console.log("rediskey", redisKey);
+  
   return redisClient
     .get(redisKey)
     .then((data) => {
@@ -74,10 +74,10 @@ async function checkAndRefreshToken(req, res, next) {
     const userData = JSON.parse(data);
     const now = Date.now();
     const expiresAt = userData.expiresAt;
-    console.log("the data from redis(expires at):", expiresAt);
+    
     let newAccessToken = userData.accessToken;
     let tokenRefreshed = false;
-    console.log(now);
+    
     // Check if the access token is expired or about to expire
     if (now >= expiresAt) {
       console.log("It has been expired");

@@ -10,7 +10,13 @@ const authenticateJWT = require("../middlewares/authenticateJWT");
 const generateJWT = require("../functions/generateJWT");
 //functions
 
-function storeUserDataInRedis(userEmail, accessToken, sharedGroups, expiresIn) {
+function storeUserDataInRedis(
+  userEmail,
+  accessToken,
+  sharedGroups,
+  expiresIn,
+  jwtToken
+) {
   const now = Date.now(); // Current timestamp in milliseconds
   const expiresInMilliseconds = expiresIn * 1000; // Convert expiresIn to milliseconds
   console.log("expires at", now + expiresInMilliseconds);
@@ -19,13 +25,14 @@ function storeUserDataInRedis(userEmail, accessToken, sharedGroups, expiresIn) {
     groups: sharedGroups,
     accessToken: accessToken,
     expiresAt: now + expiresInMilliseconds, // Calculate expiration time in milliseconds
+    jwtToken: jwtToken,
   };
-  const expireTimeforRedis= 3600*1000;
+  const expireTimeforRedis = 3600 * 1000;
 
   const jsonString = JSON.stringify(userData);
   const redisKey = `user:${userEmail}`;
 
-  redisClient.setEx(redisKey,expireTimeforRedis, jsonString, (err, reply) => {
+  redisClient.setEx(redisKey, expireTimeforRedis, jsonString, (err, reply) => {
     if (err) {
       console.error(`Error storing data for ${redisKey} in Redis:`, err);
     } else {
@@ -58,25 +65,24 @@ router.get(
       const sharedGroups = groups.map((group) => group.name);
 
       const expireTime = 60;
-      storeUserDataInRedis(
-        req.user.email,
-        req.user.accessToken,
-        sharedGroups,
-        expireTime
-      );
-
-      // Generate JWT token
       const jwtToken = generateJWT(
         req.user.accessToken,
         req.user.email,
         sharedGroups
       );
+      storeUserDataInRedis(
+        req.user.email,
+        req.user.accessToken,
+        sharedGroups,
+        expireTime,
+        jwtToken
+      );
+
       // , { httpOnly: true }
 
       res.cookie("jwtToken", jwtToken);
 
-      // Redirect to frontend (http://localhost:3000)
-      res.redirect("http://localhost:3000");
+      res.redirect("http://localhost:3000/home");
     } catch (error) {
       console.error("Error fetching user groups:", error);
       res.redirect("/failure");
@@ -85,7 +91,6 @@ router.get(
 );
 
 router.get("/dummy-data", authenticateJWT, (req, res) => {
-  console.log(req);
   const dummyData = {
     message: "This is some dummy data",
     timestamp: new Date().toISOString(),
@@ -99,7 +104,15 @@ router.get(
   authenticateJWT,
   checkAndRefreshToken,
   (req, res) => {
-    console.log(req.newJWT);
+    console.log("it is called!");
+    // Calculate expiry time 60 minutes from now
+    const expiresAt = Date.now() + 60 * 1000; // 1 minutes in milliseconds
+
+    // Assuming req.newJWT contains the new JWT token
+    res.json({
+      token: req.newJWT,
+      expiresAt: expiresAt,
+    });
   }
 );
 
