@@ -20,10 +20,12 @@ passport.use(
             displayName: profile.displayName,
             email: profile.emails[0].value,
             refreshToken: refreshToken,
+            accessToken:accessToken
           });
           await user.save();
         } else {
           user.refreshToken = refreshToken;
+          user.accessToken=accessToken;
           await user.save();
         }
 
@@ -36,14 +38,14 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  console.log("user :",user.id)
+  // console.log("user :",user.id)
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
     try {
       const user = await User.findById(id).exec();
-      console.log("user found:",user)
+      // console.log("user found:",user)
       done(null, user); // Passes the user object to req.user
     } catch (err) {
       done(err, null); // Error handling, passing null for user

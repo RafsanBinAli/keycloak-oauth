@@ -5,9 +5,10 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const passport = require("passport");
 const mongoose = require("mongoose");
-
+const jwt =require("jsonwebtoken")
 dotenv.config();
 require("./config/passport");
+// const redisClient = require('./redisClient');
 
 // Connect to MongoDB Atlas
 mongoose
@@ -32,10 +33,9 @@ app.use(passport.session());
 
 // Routes
 const authRoutes = require("./routes/authRoute");
-const protectedRoute = require("./routes/protectedRoute");
+
 
 app.use("/", authRoutes);
-app.use("/protected-route", protectedRoute);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
